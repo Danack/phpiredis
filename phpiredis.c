@@ -702,12 +702,22 @@ PHP_FUNCTION(phpiredis_format_command)
     elementslen = emalloc(sizeof(size_t) * size);
 
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(arr), p_zv) {
-        zend_string *str = zval_get_string(p_zv);
+        zend_string *str = NULL;
+        int need_free = 0;
+        if (Z_TYPE_P(p_zv) != IS_STRING) {
+            str = zval_get_string(p_zv);
+            need_free = 1;
+        } else {
+            str = Z_STR_P(p_zv); 
+        }
 
         elementslen[currpos] = (size_t) str->len;
         elements[currpos] = emalloc(sizeof(char) * elementslen[currpos]);
         memcpy(elements[currpos], str->val, elementslen[currpos]);
         zend_hash_move_forward_ex(Z_ARRVAL_P(arr), &pos);
+        if (need_free) {
+            zend_string_release(str);
+        }
 
         ++currpos;
     } ZEND_HASH_FOREACH_END();
@@ -854,11 +864,12 @@ void convert_redis_to_php(phpiredis_reader* reader, zval* return_value, redisRep
 #ifdef ZEND_ENGINE_3
                         zval arg;
                         ZVAL_STRINGL(&arg, reply->str, reply->len);
-                        ZVAL_STRINGL(return_value, reply->str, reply->len);
+                        //ZVAL_STRINGL(return_value, reply->str, reply->len);
                         if (call_user_function(EG(function_table), NULL, &((callback*) reader->status_callback)->function, return_value, 1, &arg TSRMLS_CC) == FAILURE) {
                             zval_ptr_dtor(return_value);
                             ZVAL_NULL(return_value);
                         }
+                        zend_string_release(Z_STR(arg));
 #else
                         zval *arg[1];
 
@@ -993,7 +1004,7 @@ PHP_FUNCTION(phpiredis_reader_set_status_handler)
 
         reader->status_callback = emalloc(sizeof(callback));
 
-        Z_ADDREF_P(function);
+        //Z_ADDREF_P(function);
         ZVAL_COPY_VALUE(&((callback*) reader->status_callback)->function, function);
     }
 
