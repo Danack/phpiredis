@@ -834,6 +834,7 @@ void convert_redis_to_php(phpiredis_reader* reader, zval* return_value, redisRep
                             zval_ptr_dtor(return_value);
                             ZVAL_NULL(return_value);
                         }
+                        zend_string_release(Z_STR(arg));
 #else
                         zval *arg[1];
                         MAKE_STD_ZVAL(arg[0]);
