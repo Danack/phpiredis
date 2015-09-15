@@ -370,12 +370,23 @@ PHP_FUNCTION(phpiredis_multi_command_bs)
         cmdElements = emalloc(sizeof(char*) * cmdSize);
         cmdElementslen = emalloc(sizeof(size_t) * cmdSize);
 
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(p_cmdArgs), p_cmdArg) {        
-            zend_string *str = zval_get_string(p_cmdArg);
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(p_cmdArgs), p_cmdArg) {
+            zend_string *str;
+            int need_free = 0;
+            if (Z_TYPE_P(p_cmdArg) != IS_STRING) {
+                str = zval_get_string(p_cmdArg);
+                need_free = 1;
+            } else {
+                str = Z_STR_P(p_cmdArg);
+            }
             cmdElementslen[cmdPos] = (size_t) str->len;
             cmdElements[cmdPos] = emalloc(sizeof(char) * cmdElementslen[cmdPos]);
             memcpy(cmdElements[cmdPos], str->val, cmdElementslen[cmdPos]);
             ++cmdPos;
+
+            if (need_free) {
+                zend_string_release(str);
+            }
         } ZEND_HASH_FOREACH_END();
 
         redisAppendCommandArgv(connection->c, cmdSize, (const char **)cmdElements, cmdElementslen);
